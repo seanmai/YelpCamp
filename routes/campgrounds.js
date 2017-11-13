@@ -7,13 +7,27 @@ var geocoder = require('geocoder');
 
 //INDEX - show all campground
 router.get("/", function(req, res){
-    Campground.find({}, function(err, campgrounds){
-        if(err){
-            console.log(err);
-        } else{
-            res.render("campgrounds/index", {campgrounds: campgrounds, page: "campgrounds"});
-        }
-    });
+    //Fuzzy search
+    if(req.query.search){
+        const regex = new RegExp(escapeRegex(req.query.search), 'gi');
+        Campground.find({name: regex}, function(err, allCampgrounds){
+            if(err){
+                console.log(err);
+            } else{
+                res.render("campgrounds/index", {campgrounds: allCampgrounds, page: "campgrounds"});
+            }
+        });
+    } /*else if (allCampgrounds.length === 0)) {
+            var noMatch = "No campgrounds match that query."
+    }*/ else {
+        Campground.find({}, function(err, allCampgrounds){
+            if(err){
+                console.log(err);
+            } else{
+                res.render("campgrounds/index", {campgrounds: allCampgrounds, page: "campgrounds"});
+            }
+        });
+    }
 });
 
 //CREATE - add new campground to db
@@ -113,5 +127,9 @@ router.delete("/:id", middleware.checkCampgroundOwnership, function(req, res){
         }
     })
 });
+
+function escapeRegex(text){
+    return text.replace(/[-[\]{}()*+?.,\\^$|#\s]/g, "\\$&");
+};
 
 module.exports = router;
