@@ -4,30 +4,37 @@ var router = express.Router();
 var Campground = require("../models/campground");
 var middleware = require("../middleware"); // Don't need /index.js, when requiring directory, it will automatically require file named 'index'
 var geocoder = require('geocoder');
+var multer = require('multer');
+var storage = multer.diskStorage({
+  filename: function(req, file, callback) {
+    callback(null, Date.now() + file.originalname);
+  }
+});
+var imageFilter = function (req, file, cb) {
+    // accept image files only
+    if (!file.originalname.match(/\.(jpg|jpeg|png|gif)$/i)) {
+        return cb(new Error('Only image files are allowed!'), false);
+    }
+    cb(null, true);
+};
+var upload = multer({ storage: storage, fileFilter: imageFilter})
+
+var cloudinary = require('cloudinary');
+cloudinary.config({
+  cloud_name: 'learntocodeinfo',
+  api_key: process.env.CLOUDINARY_API_KEY,
+  api_secret: process.env.CLOUDINARY_API_SECRET
+});
 
 //INDEX - show all campground
 router.get("/", function(req, res){
-    //Fuzzy search
-    if(req.query.search){
-        const regex = new RegExp(escapeRegex(req.query.search), 'gi');
-        Campground.find({name: regex}, function(err, allCampgrounds){
-            if(err){
-                console.log(err);
-            } else{
-                res.render("campgrounds/index", {campgrounds: allCampgrounds, page: "campgrounds"});
-            }
-        });
-    } /*else if (allCampgrounds.length === 0)) {
-            var noMatch = "No campgrounds match that query."
-    }*/ else {
-        Campground.find({}, function(err, allCampgrounds){
-            if(err){
-                console.log(err);
-            } else{
-                res.render("campgrounds/index", {campgrounds: allCampgrounds, page: "campgrounds"});
-            }
-        });
-    }
+    Campground.find({}, function(err, campgrounds){
+        if(err){
+            console.log(err);
+        } else{
+            res.render("campgrounds/index", {campgrounds: campgrounds, page: "campgrounds"});
+        }
+    });
 });
 
 //CREATE - add new campground to db
@@ -127,9 +134,5 @@ router.delete("/:id", middleware.checkCampgroundOwnership, function(req, res){
         }
     })
 });
-
-function escapeRegex(text){
-    return text.replace(/[-[\]{}()*+?.,\\^$|#\s]/g, "\\$&");
-};
 
 module.exports = router;
