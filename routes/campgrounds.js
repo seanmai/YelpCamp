@@ -21,9 +21,9 @@ var upload = multer({ storage: storage, fileFilter: imageFilter})
 
 var cloudinary = require('cloudinary');
 cloudinary.config({
-  cloud_name: 'learntocodeinfo',
-  api_key: process.env.CLOUDINARY_API_KEY,
-  api_secret: process.env.CLOUDINARY_API_SECRET
+  cloud_name: 'seanmai',
+  api_key: "314767545221239",
+  api_secret: "8-g_2pFJy-GKHkgNFhGANLm3uUg"
 });
 
 //INDEX - show all campground
@@ -38,32 +38,29 @@ router.get("/", function(req, res){
 });
 
 //CREATE - add new campground to db
-router.post("/", middleware.isLoggedIn, function(req, res){
+router.post("/", middleware.isLoggedIn, upload.single('image'), function(req, res){
     //get data from form and add create in db
-    var name = req.body.name;
-    var image = req.body.image;
-    var desc = req.body.description;
-    var author = {
-        id: req.user._id,
-        username: req.user.username
-    };
-    var price = req.body.price;
-    geocoder.geocode(req.body.location, function (err, data) {
-    var lat = data.results[0].geometry.location.lat;
-    var lng = data.results[0].geometry.location.lng;
-    var location = data.results[0].formatted_address;
-    var newCampground = {name: name, image: image, description: desc, price: price, author:author, location: location, lat: lat, lng: lng};
-    // Create a new campground and save to DB
-    Campground.create(newCampground, function(err, newlyCreated){
-        if(err){
-            console.log(err);
-        } else {
-            //redirect back to campgrounds page
-            console.log(newlyCreated);
-            res.redirect("/campgrounds");
-        }
+    geocoder.geocode(req.body.location, function (err, data){
+        req.body.campground.lat = data.results[0].geometry.location.lat;
+        req.body.campground.lng = data.results[0].geometry.location.lng;
+        req.body.campground.location = data.results[0].formatted_address;
+        cloudinary.uploader.upload(req.file.path, function(result) {
+            // add cloudinary url for the image to the campground object under image property
+            req.body.campground.image = result.secure_url;
+            // add author to campground
+            req.body.campground.author = {
+                id: req.user._id,
+                username: req.user.username
+            }
+            Campground.create(req.body.campground, function(err, campground) {
+                if (err) {
+                    req.flash('error', err.message);
+                    return res.redirect('back');
+                }
+                res.redirect('/campgrounds/' + campground.id);
+            });
+        });
     });
-  });
 });
 
 //NEW - show form to create new campground
