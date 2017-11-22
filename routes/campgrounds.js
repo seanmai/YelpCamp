@@ -92,19 +92,27 @@ router.get("/:id/edit", middleware.checkCampgroundOwnership, function(req, res){
 
 // UPDATE
 router.put("/:id", function(req, res){
-    geocoder.geocode(req.body.location, function (err, data) {
-        var lat = data.results[0].geometry.location.lat;
-        var lng = data.results[0].geometry.location.lng;
-        var location = data.results[0].formatted_address;
-        var newData = {name: req.body.name, image: req.body.image, description: req.body.description, price: req.body.price, location: location, lat: lat, lng: lng};
-        Campground.findByIdAndUpdate(req.params.id, {$set: newData}, function(err, updatedCampground){
-            if(err){
-                req.flash("error", err.message);
-                res.redirect("back");
-            } else {
-                req.flash("success","Successfully Updated!");
-                res.redirect("/campgrounds/" + updatedCampground._id);
+    geocoder.geocode(req.body.location, function (err, data){
+        req.body.campground.lat = data.results[0].geometry.location.lat;
+        req.body.campground.lng = data.results[0].geometry.location.lng;
+        req.body.campground.location = data.results[0].formatted_address;
+        cloudinary.uploader.upload(req.file.path, function(result) {
+            // add cloudinary url for the image to the campground object under image property
+            req.body.campground.image = result.secure_url;
+            // add author to campground
+            req.body.campground.author = {
+                id: req.user._id,
+                username: req.user.username
             }
+            Campground.findByIdAndUpdate(req.params.id, req.body.campground, function(err, updatedCampground){
+                if(err){
+                    req.flash("error", err.message);
+                    res.redirect("back");
+                } else {
+                    req.flash("success","Successfully Updated!");
+                    res.redirect("/campgrounds/" + updatedCampground._id);
+                }
+            });
         });
     });
 });
